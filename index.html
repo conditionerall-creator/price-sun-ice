@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Sun-ice Прайс-лист</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjogIlN1bi1pY2Ug0J/RgNCw0LnRgS3Qu9C40YHRgiIsICJzaG9ydF9uYW1lIjogIlN1bi1pY2UiLCAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwgInN0YXJ0X3VybCI6ICIuIiwgImJhY2tncm91bmRfY29sb3IiOiAiI2ZmZmZmZiIsICJ0aGVtZV9jb2xvciI6ICIjMWExYTFhIn0=">
+<!-- iOS Safari: делает веб-приложение полноэкранным при запуске с домашнего экрана -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sun-ice прайс-лист">
+<meta name="theme-color" content="#0f6e56">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f7f7f5;
+    --card: #ffffff;
+    --border: #e5e5e2;
+    --text: #1a1a1a;
+    --text-secondary: #6b6b68;
+    --accent: #0f6e56;
+    --accent-bg: #e1f5ee;
+    --danger: #a32d2d;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app { max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+  /* Header */
+  header {
+    padding: calc(16px + env(safe-area-inset-top)) 16px 16px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .header-top { display: flex; align-items: center; gap: 10px; }
+  .back-btn {
+    display: none;
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    color: var(--text);
+  }
+  h1 { font-size: 18px; font-weight: 600; margin: 0; flex: 1; }
+  .status-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .status-text { font-size: 12px; color: var(--text-secondary); flex: 1; }
+  .icon-btn {
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  input[type=file] { display: none; }
+
+  .search-row { margin-top: 10px; display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--bg);
+    color: var(--text);
+  }
+  select {
+    padding: 10px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--text);
+  }
+
+  main { flex: 1; padding: 8px 12px 24px; }
+  .empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* Home menu */
+  .menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    padding-top: 8px;
+  }
+  .menu-tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 14px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 92px;
+    justify-content: space-between;
+  }
+  .menu-tile:active { background: var(--accent-bg); }
+  .menu-tile-title { font-size: 14px; font-weight: 500; line-height: 1.3; }
+  .menu-tile-count { font-size: 12px; color: var(--text-secondary); }
+  .menu-tile-icon {
+    width: 32px; height: 32px;
+    border-radius: 9px;
+    background: var(--accent-bg);
+    color: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  /* List rows */
+  .row {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  .row-info { min-width: 0; flex: 1; }
+  .row-name { font-size: 14px; font-weight: 500; margin: 0; word-break: break-word; }
+  .row-price { font-size: 16px; font-weight: 600; white-space: nowrap; }
+  .count { font-size: 12px; color: var(--text-secondary); padding: 8px 2px 4px; }
+
+  .error {
+    background: #fcebeb;
+    color: var(--danger);
+    padding: 10px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    margin-top: 10px;
+  }
+  .warn {
+    background: #faeeda;
+    color: #854f0b;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="header-top">
+      <div class="back-btn" id="back-btn">←</div>
+      <h1 id="title">Sun-ice прайс-лист</h1>
+      <label class="icon-btn" for="file-input" id="upload-icon" title="Загрузить Excel вручную">⇧</label>
+      <div class="icon-btn" id="refresh-icon" title="Обновить прайс">↻</div>
+      <input type="file" id="file-input" accept=".xlsx,.xls,.csv">
+    </div>
+    <div class="status-row">
+      <div class="status-text" id="status-text">Загрузка прайса...</div>
+    </div>
+    <div id="search-block" style="display:none;">
+      <div class="search-row">
+        <input type="text" id="search" placeholder="Поиск по названию или коду">
+        <select id="sort">
+          <option value="none">Без сортировки</option>
+          <option value="price-asc">Цена ↑</option>
+          <option value="price-desc">Цена ↓</option>
+          <option value="name-asc">Название А-Я</option>
+        </select>
+      </div>
+    </div>
+    <div id="error-block"></div>
+  </header>
+  <main id="main">
+    <div class="empty" id="empty-state">Загрузка прайса...</div>
+  </main>
+</div>
+
+<script>
+/* ==== НАСТРОЙКА ==== */
+// Прямая ссылка на xlsx-файл (raw.githubusercontent.com/...). Как только получите ссылку — вставьте её сюда.
+// Список источников для загрузки прайса — пробуются по очереди, пока один не сработает.
+const PRICE_URLS = [
+  'https://cdn.jsdelivr.net/gh/conditionerall-creator/price-sun-ice@main/price.xlsx',
+  'https://raw.githubusercontent.com/conditionerall-creator/price-sun-ice/main/price.xlsx'
+];
+
+// Какие вкладки показывать и в каком порядке. Ключ — точное название вкладки в Excel-файле.
+const SHEET_CONFIG = [
+  { name: 'ПОБУТОВІ', label: 'Побутові', highlight: 'series' },
+  { name: 'МУЛЬТИСИСТЕМИ', label: 'Мультисистеми', highlight: 'series' },
+  { name: 'НАПІВПРОМ', label: 'Напівпром', highlight: 'category' },
+  { name: 'GALACTIC', label: 'Galactic', highlight: 'series' },
+  { name: 'Galactic LCAC', label: 'Galactic LCAC', highlight: 'category' }
+];
+/* ==================== */
+
+let sheetsData = {};
+let activeSheet = null; // null = главное меню
+let cachedAt = null;
+
+const priceKeywordGroups = [
+  ['ціна дилер', 'цена дилер', 'dealer price'],
+  ['роздрібна ціна', 'розничная цена', 'retail price'],
+  ['ціна', 'цена', 'price', 'стоимость']
+];
+const modelKeywords = ['модель', 'маркировка', 'маркування', 'артикул', 'sku', 'model', 'найменування', 'наименование'];
+const internalKeywords = ['внутрішній', 'внутренний', 'indoor'];
+const externalKeywords = ['зовнішній', 'наружный', 'outdoor'];
+const totalSubKeywords = ['комплект', 'всього', 'разом', 'итого', 'total'];
+const categoryStems = ['настінн', 'стельов', 'касетн', 'канальн', 'колонн', 'підлогов', 'підвісн', 'шафов'];
+const PALETTE = [
+  '#dbeafe', // синий
+  '#dcfce7', // зелёный
+  '#fef9c3', // жёлтый
+  '#fce7f3', // розовый
+  '#ede9fe', // фиолетовый
+  '#ffedd5', // оранжевый
+  '#ccfbf1', // бирюзовый
+  '#fee2e2'  // красный
+];
+
+function extractSeries(model) {
+  if (!model) return null;
+  const first = model.split(/[\s+]/)[0];
+  const m = first.match(/^[A-ZА-ЯІЇЄ]+-?(\d+)([A-ZА-ЯІЇЄ]+)/i);
+  return m ? m[2].toUpperCase() : null;
+}
+
+function isCategoryLabel(text) {
+  const s = norm(text);
+  if (!s) return false;
+  return categoryStems.some(stem => s.includes(stem));
+}
+
+function norm(v) { return String(v == null ? '' : v).toLowerCase().trim(); }
+function cellContainsAny(v, keywords) {
+  const s = norm(v);
+  if (!s) return false;
+  return keywords.some(k => s.includes(k));
+}
+function parseNumber(val) {
+  if (typeof val === 'number') return isFinite(val) ? val : null;
+  if (!val) return null;
+  const s = String(val).trim();
+  if (!s) return null;
+  const cleaned = s.replace(/\s/g, '').replace(/[^\d.,-]/g, '').replace(',', '.');
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? null : num;
+}
+function detectCurrency(headerText) {
+  const s = norm(headerText);
+  if (s.includes('грн')) return 'грн';
+  if (s.includes('у.е') || s.includes('$')) return '$';
+  if (s.includes('₴')) return '₴';
+  return '';
+}
+function findPriceHeader(rows) {
+  for (const group of priceKeywordGroups) {
+    for (let r = 0; r < rows.length; r++) {
+      const row = rows[r] || [];
+      for (let c = 0; c < row.length; c++) {
+        if (cellContainsAny(row[c], group)) return { row: r, col: c, text: row[c] };
+      }
+    }
+  }
+  return null;
+}
+function findColumnInRow(row, keywords) {
+  if (!row) return -1;
+  for (let c = 0; c < row.length; c++) {
+    if (cellContainsAny(row[c], keywords)) return c;
+  }
+  return -1;
+}
+function parseSheet(rows, highlightMode) {
+  const priceHeader = findPriceHeader(rows);
+  if (!priceHeader) return { items: [], error: 'Не найдена колонка с ценой' };
+
+  let priceCol = priceHeader.col;
+  let dataStart = priceHeader.row + 1;
+  const nextRow = rows[priceHeader.row + 1];
+  if (nextRow) {
+    for (let c = priceCol; c < nextRow.length; c++) {
+      if (cellContainsAny(nextRow[c], totalSubKeywords)) {
+        priceCol = c;
+        dataStart = priceHeader.row + 2;
+        break;
+      }
+    }
+  }
+
+  const headerRow = rows[priceHeader.row] || [];
+  const headerRowAbove = rows[priceHeader.row - 1] || [];
+  let modelCol = findColumnInRow(headerRow, modelKeywords);
+  if (modelCol === -1) modelCol = findColumnInRow(headerRowAbove, modelKeywords);
+
+  const internalCol = findColumnInRow(headerRow, internalKeywords);
+  const externalCol = findColumnInRow(headerRow, externalKeywords);
+  const currency = detectCurrency(priceHeader.text);
+  const items = [];
+  let currentCategory = null;
+
+  for (let r = dataStart; r < rows.length; r++) {
+    const row = rows[r] || [];
+    const price = parseNumber(row[priceCol]);
+
+    if (price === null && highlightMode === 'category' && modelCol !== -1) {
+      const labelText = String(row[modelCol] || '').trim();
+      const hasInternal = internalCol !== -1 && row[internalCol];
+      const hasExternal = externalCol !== -1 && row[externalCol];
+      if (labelText && !hasInternal && !hasExternal && isCategoryLabel(labelText)) {
+        currentCategory = labelText;
+      }
+    }
+
+    if (price === null) continue;
+
+    let model = modelCol !== -1 ? String(row[modelCol] || '').trim() : '';
+    if (!model && internalCol !== -1) {
+      const parts = [row[internalCol], row[externalCol]].filter(v => v && String(v).trim());
+      model = parts.map(v => String(v).trim()).join(' + ');
+    }
+    if (!model) continue;
+
+    const item = { model, price, currency };
+    if (highlightMode === 'series') item.groupKey = extractSeries(model);
+    else if (highlightMode === 'category') item.groupKey = currentCategory;
+    items.push(item);
+  }
+
+  if (highlightMode) {
+    const colorMap = new Map();
+    items.forEach(it => {
+      if (!it.groupKey) return;
+      if (!colorMap.has(it.groupKey)) colorMap.set(it.groupKey, PALETTE[colorMap.size % PALETTE.length]);
+      it.color = colorMap.get(it.groupKey);
+    });
+  }
+
+  return { items, error: items.length === 0 ? 'Не удалось найти строки с маркировкой и ценой' : null };
+}
+
+function processWorkbook(wb, sourceLabel) {
+  sheetsData = {};
+  const problems = [];
+  SHEET_CONFIG.forEach(cfg => {
+    if (!wb.SheetNames.includes(cfg.name)) {
+      problems.push(cfg.label + ' (вкладка не найдена в файле)');
+      return;
+    }
+    const sheet = wb.Sheets[cfg.name];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+    const result = parseSheet(rows, cfg.highlight);
+    if (result.items.length > 0) {
+      sheetsData[cfg.name] = result.items;
+    } else {
+      problems.push(cfg.label + (result.error ? ' (' + result.error + ')' : ''));
+    }
+  });
+
+  const errBlock = document.getElementById('error-block');
+  if (problems.length) {
+    errBlock.innerHTML = '<div class="warn">Не удалось распознать: ' + escapeHtml(problems.join(', ')) + '</div>';
+  } else {
+    errBlock.innerHTML = '';
+  }
+
+  setStatus(sourceLabel);
+  renderView();
+}
+
+function setStatus(text) {
+  document.getElementById('status-text').textContent = text;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+/* ==== Загрузка данных ==== */
+function loadFromCache() {
+  try {
+    const raw = localStorage.getItem('priceapp_cache');
+    if (!raw) return false;
+    const cached = JSON.parse(raw);
+    const wb = XLSX.read(cached.base64, { type: 'base64' });
+    cachedAt = cached.savedAt;
+    processWorkbook(wb, 'Автономная копия от ' + new Date(cachedAt).toLocaleString('ru-RU'));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function saveToCache(base64) {
+  try {
+    localStorage.setItem('priceapp_cache', JSON.stringify({ base64, savedAt: Date.now() }));
+  } catch (e) {}
+}
+
+function fetchRemotePrice() {
+  if (!PRICE_URLS.length) {
+    if (!loadFromCache()) {
+      setStatus('Ссылка на прайс не настроена. Загрузите файл вручную.');
+      document.getElementById('empty-state').textContent = 'Нажмите на значок загрузки вверху, чтобы выбрать Excel-файл.';
+    }
+    return;
+  }
+  setStatus('Загрузка прайса из интернета...');
+  tryUrls(PRICE_URLS, []);
+}
+
+function tryUrls(urls, errors) {
+  if (urls.length === 0) {
+    if (!loadFromCache()) {
+      setStatus('Не удалось загрузить прайс из интернета.');
+      document.getElementById('error-block').innerHTML =
+        '<div class="error">Не удалось скачать файл ни с одного источника:<br>' +
+        errors.map(e => escapeHtml(e)).join('<br>') +
+        '<br>Загрузите файл вручную.</div>';
+    } else {
+      document.getElementById('error-block').innerHTML =
+        '<div class="warn">Не удалось обновить прайс из интернета, показана сохранённая копия. Ошибки: ' +
+        escapeHtml(errors.join(' | ')) + '</div>';
+    }
+    return;
+  }
+  const url = urls[0];
+  const rest = urls.slice(1);
+  fetch(url, { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+    .then(buf => {
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      const b64 = arrayBufferToBase64(buf);
+      saveToCache(b64);
+      processWorkbook(wb, 'Обновлено ' + new Date().toLocaleString('ru-RU'));
+    })
+    .catch(err => {
+      errors.push(url + ' → ' + err.message);
+      tryUrls(rest, errors);
+    });
+}
+
+function arrayBufferToBase64(buffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+  return btoa(binary);
+}
+
+document.getElementById('file-input').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus('Загрузка файла...');
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    try {
+      const buf = ev.target.result;
+      const wb = XLSX.read(new Uint8Array(buf), { type: 'array' });
+      saveToCache(arrayBufferToBase64(buf));
+      processWorkbook(wb, 'Загружено вручную ' + new Date().toLocaleString('ru-RU'));
+    } catch (err) {
+      setStatus('Ошибка загрузки файла.');
+      document.getElementById('error-block').innerHTML =
+        '<div class="error">' + escapeHtml(err.message) + '</div>';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+document.getElementById('refresh-icon').addEventListener('click', fetchRemotePrice);
+document.getElementById('back-btn').addEventListener('click', function() {
+  activeSheet = null;
+  renderView();
+});
+document.getElementById('search').addEventListener('input', renderList);
+document.getElementById('sort').addEventListener('change', renderList);
+
+/* ==== Отрисовка ==== */
+function renderView() {
+  const backBtn = document.getElementById('back-btn');
+  const title = document.getElementById('title');
+  const searchBlock = document.getElementById('search-block');
+  const emptyState = document.getElementById('empty-state');
+
+  if (activeSheet === null) {
+    backBtn.style.display = 'none';
+    title.textContent = 'Прайс-лист';
+    searchBlock.style.display = 'none';
+    renderMenu();
+  } else {
+    backBtn.style.display = 'flex';
+    const cfg = SHEET_CONFIG.find(c => c.name === activeSheet);
+    title.textContent = cfg ? cfg.label : activeSheet;
+    searchBlock.style.display = 'block';
+    document.getElementById('search').value = '';
+    document.getElementById('sort').value = 'none';
+    renderList();
+  }
+}
+
+function renderMenu() {
+  const main = document.getElementById('main');
+  const hasData = Object.keys(sheetsData).length > 0;
+  if (!hasData) {
+    main.innerHTML = '<div class="empty" id="empty-state">Прайс ещё не загружен.</div>';
+    return;
+  }
+  const tiles = SHEET_CONFIG.filter(cfg => sheetsData[cfg.name]).map(cfg => {
+    const initials = cfg.label.slice(0, 2).toUpperCase();
+    return `
+      <div class="menu-tile" data-sheet="${escapeHtml(cfg.name)}">
+        <div class="menu-tile-icon">${escapeHtml(initials)}</div>
+        <div>
+          <div class="menu-tile-title">${escapeHtml(cfg.label)}</div>
+        </div>
+      </div>`;
+  }).join('');
+  main.innerHTML = '<div class="menu-grid">' + tiles + '</div>';
+  main.querySelectorAll('.menu-tile').forEach(el => {
+    el.addEventListener('click', () => {
+      activeSheet = el.getAttribute('data-sheet');
+      renderView();
+    });
+  });
+}
+
+function renderList() {
+  const search = document.getElementById('search').value.toLowerCase().trim();
+  const sort = document.getElementById('sort').value;
+  const main = document.getElementById('main');
+
+  const allItems = sheetsData[activeSheet] || [];
+  let filtered = allItems.filter(it => !search || it.model.toLowerCase().includes(search));
+
+  if (sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
+  else if (sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
+  else if (sort === 'name-asc') filtered.sort((a, b) => a.model.localeCompare(b.model, 'ru'));
+
+  const countHtml = '<div class="count">Найдено: ' + filtered.length + '</div>';
+  const rowsHtml = filtered.map(it => `
+    <div class="row" style="${it.color ? 'background:' + it.color + ';border-color:transparent;' : ''}">
+      <div class="row-info"><p class="row-name">${escapeHtml(it.model)}</p></div>
+      <div class="row-price">${it.price.toLocaleString('ru-RU')}${it.currency ? ' ' + it.currency : ''}</div>
+    </div>
+  `).join('');
+
+  main.innerHTML = countHtml + (filtered.length ? rowsHtml : '<div class="empty">Ничего не найдено</div>');
+}
+
+// При обычном открытии — берём сохранённую копию (без обращения в интернет).
+// Свежую версию приложение скачивает только по нажатию кнопки обновления (↻)
+// либо при самом первом запуске, если сохранённой копии ещё нет.
+if (!loadFromCache()) {
+  fetchRemotePrice();
+}
+</script>
+</body>
+</html>
